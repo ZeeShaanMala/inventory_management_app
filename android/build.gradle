@@ -1,21 +1,85 @@
 buildscript {
     ext {
-        buildToolsVersion = "36.0.0"
-        minSdkVersion = 24
-        compileSdkVersion = 36
-        targetSdkVersion = 36
-        ndkVersion = "27.1.12297006"
-        kotlinVersion = "2.1.20"
+        buildToolsVersion = "33.0.0"
+        minSdkVersion = 21
+        compileSdkVersion = 34
+        targetSdkVersion = 34
+        ndkVersion = "23.1.7779620"
     }
+
     repositories {
         google()
         mavenCentral()
     }
+
     dependencies {
-        classpath("com.android.tools.build:gradle")
+        classpath("com.android.tools.build:gradle:8.0.2")
         classpath("com.facebook.react:react-native-gradle-plugin")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.0")
     }
 }
 
-apply plugin: "com.facebook.react.rootproject"
+allprojects {
+    repositories {
+        mavenCentral()
+        google()
+    }
+}
+
+// ✅ Helper: read package name from AndroidManifest.xml
+def getPackageFromManifest(project) {
+    try {
+        def manifestFile = project.file("src/main/AndroidManifest.xml")
+        if (manifestFile.exists()) {
+            def manifest = new XmlSlurper().parse(manifestFile)
+            def pkg = manifest.@package?.toString()
+            if (pkg && pkg != "") return pkg
+        }
+    } catch (Exception e) {
+        // ignore, fall through to default
+    }
+    return null
+}
+
+subprojects {
+
+    // ✅ FIX 1: Force compatible AndroidX versions
+    configurations.all {
+        resolutionStrategy {
+            force "androidx.core:core:1.9.0"
+            force "androidx.core:core-ktx:1.9.0"
+        }
+    }
+
+    afterEvaluate { project ->
+        if (project.hasProperty("android")) {
+            def androidExt = project.extensions.findByName("android")
+            if (androidExt != null) {
+
+                // ✅ FIX 2: Namespace — read from AndroidManifest first (correct package)
+                // Falls back to generated name only if manifest has no package attribute
+                if (!androidExt.namespace || androidExt.namespace == "") {
+                    def manifestPackage = getPackageFromManifest(project)
+                    if (manifestPackage) {
+                        androidExt.namespace = manifestPackage
+                    } else {
+                        androidExt.namespace = "com.inventorymanagementapp.${project.name.replace('-', '_')}"
+                    }
+                }
+
+                // ✅ FIX 3: Java 17 for all submodules
+                androidExt.compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+
+                // ✅ FIX 4: Enable BuildConfig
+                if (androidExt.hasProperty("buildFeatures")) {
+                    androidExt.buildFeatures {
+                        buildConfig true
+                    }
+                }
+            }
+        }
+    }
+}

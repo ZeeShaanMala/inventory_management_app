@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./frontend/src",
+    "paths": {
+      "@components/*": ["components/*"],
+      "@screens/*": ["screens/*"],
+      "@navigation/*": ["navigation/*"],
+      "@store/*": ["store/*"],
+      "@utils/*": ["utils/*"]
+    },
+    "ignoreDeprecations": "6.0"
+  },
+  "include": ["frontend/src/**/*"],
+  "exclude": ["node_modules", "android", "ios"]
+}
