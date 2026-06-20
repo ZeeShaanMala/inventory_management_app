@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   Alert,
-  ActivityIndicator,
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
@@ -15,6 +14,7 @@ import PrimaryButton from "../../components/PrimaryButton";
 import { api } from "@services/api";
 import { useLayoutEffect } from "react";
 import { useStore } from "@store/useStore";
+import LoadingOverlay from "@components/LoadingOverlay";
 
 export default function AddDevice({ navigation, route }) {
 
@@ -27,6 +27,7 @@ export default function AddDevice({ navigation, route }) {
   const [alias, setAlias] = useState("");
   const [sim, setSim] = useState("");
   const [notes, setNotes] = useState("");
+  const [costPrice, setCostPrice] = useState("");
   const [loading, setLoading] = useState(false);
   const [startImei, setStartImei] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -47,6 +48,7 @@ export default function AddDevice({ navigation, route }) {
       setModel(editData.model || "");
       setAlias(editData.alias || "");
       setSim(editData.sim_number || "");
+      setCostPrice(editData.cost_price?.toString() || "");
       setNotes(editData.notes || "");
     }
   }, [editData]);
@@ -83,37 +85,38 @@ export default function AddDevice({ navigation, route }) {
       model,
       sim_number: sim,
       alias,
-      notes
+      notes,
+      cost_price: Number(costPrice || 0)
     };
 
-    if (api.updateDevice) {
-      await api.updateDevice(updatedDevice);
-    }
+    await updateDevice(
+      updatedDevice.imei,
+      updatedDevice
+    );
 
-    // ✅ update Zustand
-updateDevice(updatedDevice.imei, updatedDevice);
-    Alert.alert("Success", "Device updated successfully");
+    Alert.alert(
+      "Success",
+      "Device updated successfully"
+    );
 
   } else {
 
     const newDevice = {
-  imei,
-  model,
-  sim_number: sim,
-  alias,
-  notes,
-  status: "IN_STOCK"
-};
+      imei,
+      model,
+      sim_number: sim,
+      alias,
+      notes,
+      cost_price: Number(costPrice || 0),
+      status: "IN_STOCK"
+    };
 
-// API call (optional)
-if (api.addDevice) {
-  await api.addDevice(newDevice);
-}
+    await addDevice(newDevice);
 
-// 🔥 IMPORTANT: update Zustand store
-addDevice(newDevice);
-
-    Alert.alert("Success", "Device added successfully");
+    Alert.alert(
+      "Success",
+      "Device added successfully"
+    );
 
     setImei("");
     setModel("");
@@ -125,11 +128,17 @@ addDevice(newDevice);
   navigation.goBack();
 
 } catch (e) {
-  Alert.alert("Error", e.message);
-}
 
-    setLoading(false);
-  };
+  Alert.alert(
+    "Error",
+    e.message
+  );
+
+} finally {
+
+  setLoading(false);
+
+}};
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -227,24 +236,37 @@ addDevice(newDevice);
 
           {/* BUTTON */}
           <View style={styles.buttonContainer}>
-            {loading ? (
-              <ActivityIndicator size="large" color="#2563EB" />
-            ) : (
-              <PrimaryButton
-              title={
-                isBulk
-                  ? "Add Bulk Devices"
-                  : isEdit
-                  ? "Update Device"
-                  : "Save Device"
-              }                
-              onPress={isBulk ? handleBulkAdd : handleAdd}
-              />
-            )}
-          </View>
+
+  <PrimaryButton
+    title={
+      isBulk
+        ? "Add Bulk Devices"
+        : isEdit
+        ? "Update Device"
+        : "Save Device"
+    }
+    onPress={
+      isBulk
+        ? handleBulkAdd
+        : handleAdd
+    }
+    disabled={loading}
+  />
+
+</View>
 
         </ScrollView>
       </KeyboardAvoidingView>
+      <LoadingOverlay
+  visible={loading}
+  text={
+    isBulk
+      ? "Adding devices..."
+      : isEdit
+      ? "Updating device..."
+      : "Saving device..."
+  }
+/>
     </SafeAreaView>
   );
 }

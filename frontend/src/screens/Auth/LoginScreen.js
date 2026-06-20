@@ -3,12 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   Alert
 } from "react-native";
+import LoadingOverlay from "@components/LoadingOverlay";
 
 import InputFields from "../../components/InputFields";
 import PrimaryButton from "../../components/PrimaryButton";
@@ -24,25 +24,51 @@ export default function LoginScreen({ navigation }) {
 
   const { login } = useStore();
 
-  const handleLogin = () => {
-    if (!email || !password) {
-      return Alert.alert("Error", "Please fill all fields");
-    }
+  const handleLogin = async () => {
+
+  if (!email || !password) {
+    return Alert.alert(
+      "Error",
+      "Please fill all fields"
+    );
+  }
+
+  try {
 
     setLoading(true);
 
-    setTimeout(() => {
-      if (email === "admin@gps.com" && password === "123456") {
-        login(email);
-        Alert.alert("Success", "Login successful");
-        navigation.replace("MainApp");
-      } else {
-        Alert.alert("Error", "Invalid email or password");
-      }
-      setLoading(false);
-    }, 1000);
-  };
+    // ================= REAL LOGIN =================
+    await login(
+      email,
+      password
+    );
+    await useStore
+  .getState()
+  .loadData();
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
+
+    Alert.alert(
+      "Success",
+      "Login successful"
+    );
+
+    navigation.replace("MainApp");
+
+  } catch (error) {
+
+    Alert.alert(
+      "Error",
+      error.message || "Login failed"
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+};
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
@@ -96,19 +122,22 @@ export default function LoginScreen({ navigation }) {
 
           {/* BUTTON */}
           <View style={styles.buttonContainer}>
-            {loading ? (
-              <ActivityIndicator size="large" color={COLORS.primary} />
-            ) : (
-              <PrimaryButton
-                title="Sign In"
-                onPress={handleLogin}
-              />
-            )}
-          </View>
+
+  <PrimaryButton
+    title="Sign In"
+    onPress={handleLogin}
+    disabled={loading}
+  />
+
+</View>
 
         </View>
 
       </KeyboardAvoidingView>
+      <LoadingOverlay
+  visible={loading}
+  text="Signing in..."
+/>
     </SafeAreaView>
   );
 }

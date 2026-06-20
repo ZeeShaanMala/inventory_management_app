@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useStore } from "@store/useStore";
+import LoadingOverlay from "@components/LoadingOverlay";
 
 export default function ChangePassword({ navigation }) {
   const { user, changePassword } = useStore();
@@ -24,32 +25,109 @@ export default function ChangePassword({ navigation }) {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-
+  const [loading, setLoading] = useState(false);
   const hasMinLength = newPassword.length >= 8;
   const hasNumber = /\d/.test(newPassword);
   const hasSymbol = /[!@#$%^&*]/.test(newPassword);
 
   const handleSave = () => {
-    if (!currentPassword) {
-      return Alert.alert("Error", "Enter current password");
-    }
 
-    if (user?.password && currentPassword !== user.password) {
-      return Alert.alert("Error", "Incorrect current password");
-    }
+  if (!currentPassword) {
 
-    if (!hasMinLength || !hasNumber || !hasSymbol) {
-      return Alert.alert("Error", "Password must meet all requirements");
-    }
+    return Alert.alert(
+      "Error",
+      "Enter current password"
+    );
 
-    if (newPassword !== confirmPassword) {
-      return Alert.alert("Error", "Passwords do not match");
-    }
+  }
 
-    changePassword(newPassword);
-    Alert.alert("Success", "Password updated");
+  if (
+    user?.password &&
+    currentPassword !== user.password
+  ) {
+
+    return Alert.alert(
+      "Error",
+      "Incorrect current password"
+    );
+
+  }
+
+  if (
+    !hasMinLength ||
+    !hasNumber ||
+    !hasSymbol
+  ) {
+
+    return Alert.alert(
+      "Error",
+      "Password must meet all requirements"
+    );
+
+  }
+
+  if (newPassword !== confirmPassword) {
+
+    return Alert.alert(
+      "Error",
+      "Passwords do not match"
+    );
+
+  }
+
+  Alert.alert(
+    "Confirm Password Change",
+    "Are you sure you want to update your password?",
+    [
+      {
+        text: "Cancel",
+        style: "cancel"
+      },
+
+      {
+        text: "Update",
+        onPress: processPasswordChange
+      }
+    ]
+  );
+
+};
+const processPasswordChange = async () => {
+
+  try {
+
+    setLoading(true);
+
+    await new Promise(resolve =>
+      setTimeout(resolve, 800)
+    );
+
+    await changePassword(
+  currentPassword,
+  newPassword
+);
+
+    Alert.alert(
+      "Success",
+      "Password updated successfully"
+    );
+
     navigation.goBack();
-  };
+
+  } catch (e) {
+
+    Alert.alert(
+      "Error",
+      e.message
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+};
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -118,7 +196,16 @@ export default function ChangePassword({ navigation }) {
           </View>
 
           {/* BUTTON */}
-          <TouchableOpacity style={styles.btn} onPress={handleSave}>
+          <TouchableOpacity
+  style={[
+    styles.btn,
+    loading && {
+      opacity: 0.7
+    }
+  ]}
+  onPress={handleSave}
+  disabled={loading}
+>
             <Text style={styles.btnText}>Update Password</Text>
           </TouchableOpacity>
 
@@ -132,6 +219,10 @@ export default function ChangePassword({ navigation }) {
 
         </ScrollView>
       </KeyboardAvoidingView>
+      <LoadingOverlay
+  visible={loading}
+  text="Updating password..."
+/>
     </SafeAreaView>
   );
 }

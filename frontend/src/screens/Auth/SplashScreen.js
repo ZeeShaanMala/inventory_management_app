@@ -9,12 +9,24 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { COLORS } from "@utils/constants";
+import { useStore } from "@store/useStore";
 
 export default function SplashScreen({ navigation }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const loadData = useStore(state => state.loadData);
+const token = useStore(state => state.token);
 
   useEffect(() => {
+
+  const initialize = async () => {
+
+    // LOAD STORED DATA
+    await useStore
+  .getState()
+  .loadData();
+
+    // START ANIMATION
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -28,10 +40,25 @@ export default function SplashScreen({ navigation }) {
       })
     ]).start();
 
+    // WAIT FOR SPLASH
     setTimeout(() => {
-      navigation.replace("Login");
+
+      const currentToken =
+        useStore.getState().token;
+
+      navigation.replace(
+        currentToken
+          ? "MainApp"
+          : "Login"
+      );
+
     }, 2500);
-  }, []);
+
+  };
+
+  initialize();
+
+}, []);
 
   return (
     <SafeAreaView style={styles.container}>

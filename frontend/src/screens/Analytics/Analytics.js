@@ -68,9 +68,9 @@ export default function Analytics() {
   const soldDevices = devices.filter(d => {
     if (normalize(d?.status || "") !== "sold") return false;
 
-    if (!d.soldAt) return false;
+    if (!d.sold_at) return false;
 
-    const dDate = new Date(d.soldAt);
+const dDate = new Date(d.sold_at);
 
     return (
       dDate.getMonth() === selectedMonth.getMonth() &&
@@ -80,12 +80,12 @@ export default function Analytics() {
 
   // ---------------- KPI ----------------
   const totalRevenue = soldDevices.reduce(
-    (sum, d) => sum + (Number(d.sellingPrice) || 0),
+    (sum, d) => sum + (Number(d.selling_price) || 0),
     0
   );
 
   const totalCost = soldDevices.reduce(
-    (sum, d) => sum + (Number(d.costPrice) || 0),
+    (sum, d) => sum + (Number(d.cost_price) || 0),
     0
   );
 
@@ -101,16 +101,16 @@ export default function Analytics() {
 
   const trend = days.map(day =>
     soldDevices.filter(d =>
-      d.soldAt?.slice(0, 10) === day
+      d.sold_at?.slice(0, 10) === day
     ).length
   );
 
   const profitTrend = days.map(day =>
     soldDevices
-      .filter(d => d.soldAt?.slice(0, 10) === day)
+      .filter(d => d.sold_at?.slice(0, 10) === day)
       .reduce(
         (sum, d) =>
-          sum + ((Number(d.sellingPrice) || 0) - (Number(d.costPrice) || 0)),
+          sum + ((Number(d.selling_price) || 0) - (Number(d.cost_price) || 0)),
         0
       )
   );
@@ -209,12 +209,18 @@ export default function Analytics() {
 
             <ScrollView horizontal>
               <BarChart
-                data={{
-                  labels: days.map(formatLabel),
+                data={
+                  {labels: days.map((d, i) =>
+  i % 7 === 0 ? formatLabel(d) : ""
+)
+                  ,
                   datasets: [{ data: trend }]
                 }}
-                width={Math.max(screenWidth, days.length * 50)}
-                height={220}
+                width={Math.max(screenWidth, days.length * 32)}
+                height={180}
+                verticalLabelRotation={0}
+                horizontalLabelRotation={0}
+                
                 chartConfig={chartConfig}
               />
             </ScrollView>
@@ -227,11 +233,16 @@ export default function Analytics() {
             <ScrollView horizontal>
               <BarChart
                 data={{
-                  labels: days.map(formatLabel),
+                  labels: days.map((d, i) =>
+  i % 7 === 0 ? formatLabel(d) : ""
+),
                   datasets: [{ data: profitTrend }]
                 }}
-                width={Math.max(screenWidth, days.length * 50)}
-                height={220}
+                width={Math.max(screenWidth, days.length * 32)}
+                height={180}
+                verticalLabelRotation={0}
+horizontalLabelRotation={0}
+                yAxisLabel="₹"
                 chartConfig={chartConfig}
               />
             </ScrollView>
@@ -244,7 +255,7 @@ export default function Analytics() {
             <PieChart
               data={pieData}
               width={screenWidth - 32}
-              height={220}
+              height={180}
               chartConfig={chartConfig}
               accessor="population"
               backgroundColor="transparent"
@@ -262,7 +273,11 @@ const chartConfig = {
   backgroundGradientTo: "#fff",
   decimalPlaces: 0,
   color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`,
-  labelColor: () => "#475569"
+  labelColor: () => "#475569",
+
+  propsForLabels: {
+  fontSize: 10
+}
 };
 
 const styles = StyleSheet.create({
@@ -285,7 +300,11 @@ const styles = StyleSheet.create({
     width: 100,
     padding: 14,
     borderRadius: 16,
-    alignItems: "center"
+    alignItems: "center",
+    shadowColor: "#000",
+shadowOpacity: 0.08,
+shadowRadius: 8,
+elevation: 4
   },
   statValue: { fontSize: 18, fontWeight: "700" },
   statLabel: { fontSize: 12 },

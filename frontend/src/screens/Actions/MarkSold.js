@@ -11,6 +11,7 @@ import PrimaryButton from "../../components/PrimaryButton";
 import { useStore } from "@store/useStore";
 import { STATUS } from "@utils/constants";
 import InputFields from "@components/InputFields";
+import LoadingOverlay from "@components/LoadingOverlay";
 
 export default function MarkSold({ navigation, route }) {
 
@@ -20,42 +21,93 @@ export default function MarkSold({ navigation, route }) {
   const [sellingPrice, setSellingPrice] = useState("");
   const [costPrice, setCostPrice] = useState("");
   const [selectedImei, setSelectedImei] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const ActivatedDevices = devices.filter(
     d => d.status === STATUS.ACTIVATED
   );
 
   const handleSold = () => {
-    if (!selectedImei) {
-      return Alert.alert("Error", "Select IMEI");
-    }
 
-    if (!sellingPrice || !costPrice) {
-      return Alert.alert("Error", "Enter both prices");
-    }
+  if (!selectedImei) {
+    return Alert.alert(
+      "Error",
+      "Select IMEI"
+    );
+  }
 
-    // 🔥 ADDED VALIDATION (THIS WAS MISSING)
-    if (Number(costPrice) > Number(sellingPrice)) {
-      return Alert.alert(
-        "Invalid Input",
-        "Cost price cannot be greater than selling price"
-      );
-    }
+  if (!sellingPrice || !costPrice) {
+    return Alert.alert(
+      "Error",
+      "Enter both prices"
+    );
+  }
 
-    try {
-      markAsSold(selectedImei, {
-        sellingPrice: Number(sellingPrice),
-        costPrice: Number(costPrice)
-      });
+  if (
+    Number(costPrice) >
+    Number(sellingPrice)
+  ) {
 
-      Alert.alert("Success", "Device marked as SOLD");
+    return Alert.alert(
+      "Invalid Input",
+      "Cost price cannot be greater than selling price"
+    );
 
-      navigation.goBack();
+  }
 
-    } catch (e) {
-      Alert.alert("Error", e.message);
-    }
-  };
+  Alert.alert(
+    "Confirm Sale",
+    "Are you sure you want to mark this device as SOLD?",
+    [
+      {
+        text: "Cancel",
+        style: "cancel"
+      },
+
+      {
+        text: "Confirm",
+        onPress: processSale
+      }
+    ]
+  );
+
+};
+const processSale = async () => {
+
+  try {
+
+    setLoading(true);
+
+    await new Promise(resolve =>
+      setTimeout(resolve, 800)
+    );
+
+    markAsSold(selectedImei, {
+      sellingPrice: Number(sellingPrice),
+      costPrice: Number(costPrice)
+    });
+
+    Alert.alert(
+      "Success",
+      "Device marked as SOLD"
+    );
+
+    navigation.goBack();
+
+  } catch (e) {
+
+    Alert.alert(
+      "Error",
+      e.message
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+};
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -110,15 +162,20 @@ export default function MarkSold({ navigation, route }) {
           {/* Button */}
           <View style={styles.buttonContainer}>
             <PrimaryButton
-              title="Mark as Sold"
-              icon="✅"
-              onPress={handleSold}
-            />
+  title="Mark as Sold"
+  icon="✅"
+  onPress={handleSold}
+  disabled={loading}
+/>
           </View>
 
         </View>
 
       </View>
+      <LoadingOverlay
+  visible={loading}
+  text="Processing sale..."
+/>
     </SafeAreaView>
   );
 }

@@ -1,18 +1,9 @@
 import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { STATUS } from "@utils/constants";
+import { api } from "services/api";
 
-const normalizeIMEI = (imei) => imei?.toString().trim();
 
-const createHistoryEntry = (action, label, note = "") => ({
-  id: Date.now().toString(),
-  action,
-  label,
-  date: new Date().toLocaleDateString(),
-  time: new Date().toLocaleTimeString(),
-  note,
-  by: "Admin"
-});
+
 
 export const useStore = create((set, get) => ({
 
@@ -20,6 +11,7 @@ export const useStore = create((set, get) => ({
   devices: [],
   parties: [],
   user: null,
+  token: null,
 
   // 🔥 GLOBAL HISTORY (FIXED)
   history: [],
@@ -32,30 +24,88 @@ export const useStore = create((set, get) => ({
   },
 
   // ================= HISTORY =================
-  addHistory: (entry) => {
-    const updated = [entry, ...(get().history || [])];
-    set({ history: updated });
-  },
+addHistory: async () => {},
 
-  // ================= LOAD =================
-  loadData: async () => {
-    const d = await AsyncStorage.getItem("devices");
-    const p = await AsyncStorage.getItem("parties");
+// ================= CLEAR HISTORY =================
+clearHistory: () => {
+
+  set({ history: [] });
+
+  AsyncStorage.removeItem("history");
+},
+
+// ================= DELETE SINGLE HISTORY =================
+deleteHistoryItem: (id) => {
+
+  const updated = get().history.filter(
+    (item) => item.id !== id
+  );
+
+  set({ history: updated });
+
+  get().saveHistory(updated);
+},
+
+// ================= LOAD =================
+loadData: async () => {
+
+  try {
+
+    // ================= LOCAL STORAGE =================
     const u = await AsyncStorage.getItem("user");
+    const t = await AsyncStorage.getItem("token");
     const s = await AsyncStorage.getItem("settings");
 
-    if (d) set({ devices: JSON.parse(d) });
-    if (p) set({ parties: JSON.parse(p) });
-    if (u) set({ user: JSON.parse(u) });
-    if (s) set({ settings: JSON.parse(s) });
-  },
+
+// ================= LOCAL USER =================
+    if (u && t) {
+
+  set({
+    user: JSON.parse(u),
+    token: t
+  });
+
+}
+
+    // ================= BACKEND DATA =================
+    const devices = await api.getDevices();
+
+    const parties = await api.getParties();
+
+    const history = await api.getHistory();
+
+
+    // ================= SET STATE =================
+    set({
+      devices,
+      parties,
+      history
+    });
+
+
+    
+
+
+    // ================= LOCAL SETTINGS =================
+    if (s) {
+      set({ settings: JSON.parse(s) });
+    }
+
+  } catch (error) {
+
+    console.log(
+      "LOAD DATA ERROR:",
+      error.message
+    );
+
+  }
+
+},
 
   // ================= SAVE =================
-  saveDevices: (devices) =>
-    AsyncStorage.setItem("devices", JSON.stringify(devices)),
-
-  saveParties: (parties) =>
-    AsyncStorage.setItem("parties", JSON.stringify(parties)),
+  saveDevices: async() => {},
+  saveParties: async() => {},
+  saveHistory: async() => {},
 
   saveUser: (user) =>
     user
@@ -64,31 +114,132 @@ export const useStore = create((set, get) => ({
 
   saveSettings: (settings) =>
     AsyncStorage.setItem("settings", JSON.stringify(settings)),
+  
 
-  // ================= AUTH =================
-  login: (email) => {
-    const user = { email };
-    set({ user });
-    get().saveUser(user);
-  },
+ // ================= AUTH =================
+login: async (
+  email,
+  password
+) => {
 
-  logout: () => {
-    set({ user: null });
-    get().saveUser(null);
-  },
+  try {
 
-  updateUser: (updates) => {
-    const updated = { ...get().user, ...updates };
-    set({ user: updated });
-    get().saveUser(updated);
-  },
+    // ================= BACKEND LOGIN =================
+    const data = await api.login({
+      email,
+      password
+    });
 
-  changePassword: (password) => {
-    const updated = { ...get().user, password };
-    set({ user: updated });
-    get().saveUser(updated);
-  },
 
+    // ================= USER =================
+    const user = data.user;
+
+const token = data.token;
+
+
+// ================= SAVE =================
+set({
+  user,
+  token
+});
+
+
+// ================= PERSIST =================
+get().saveUser(user);
+
+AsyncStorage.setItem(
+  "token",
+  token
+);
+
+
+    return data;
+
+  } catch (error) {
+
+    throw new Error(
+      error.message || "Login failed"
+    );
+
+  }
+
+},
+  logout: async () => {
+
+  set({
+    user: null,
+    token: null
+  });
+
+  get().saveUser(null);
+
+  await AsyncStorage.removeItem(
+    "token"
+  );
+
+},
+
+  updateUser: async (updates) => {
+
+  try {
+
+    // ================= CURRENT USER =================
+    const currentUser = get().user;
+
+    // ================= BACKEND UPDATE =================
+    const data = await api.updateProfile({
+      id: currentUser.id,
+      name: updates.name,
+      email: updates.email,
+      avatar: updates.avatar || currentUser.avatar
+    });
+
+    // ================= UPDATED USER =================
+    const updatedUser = data.user;
+
+    // ================= UPDATE STATE =================
+    set({
+      user: updatedUser
+    });
+
+    // ================= SAVE LOCAL =================
+    get().saveUser(updatedUser);
+
+  } catch (error) {
+
+    throw new Error(
+      error.message || "Profile update failed"
+    );
+
+  }
+
+},
+
+  changePassword: async (
+  currentPassword,
+  newPassword
+) => {
+
+  try {
+
+    const currentUser = get().user;
+
+    // ================= BACKEND REQUEST =================
+    await api.changePassword({
+      email: currentUser.email,
+      currentPassword,
+      newPassword
+    });
+
+  } catch (error) {
+
+    throw new Error(
+      error.message || "Password update failed"
+    );
+
+  }
+
+},
   // ================= SETTINGS =================
   toggleNotifications: () => {
     const updated = {
@@ -99,275 +250,355 @@ export const useStore = create((set, get) => ({
     get().saveSettings(updated);
   },
 
-  // ================= DEVICE =================
-  addDevice: (device) => {
-    const newIMEI = normalizeIMEI(device.imei);
+  toggleEmailReports: () => {
 
-    if (get().devices.some((d) => normalizeIMEI(d.imei) === newIMEI)) {
-      throw new Error("Device already exists");
-    }
+  const updated = {
+    ...get().settings,
+    emailReports:
+      !get().settings.emailReports
+  };
 
-    const entry = createHistoryEntry(
-      "created",
-      "Device Added",
-      `IMEI: ${newIMEI}`
-    );
+  set({
+    settings: updated
+  });
 
-    get().addHistory(entry);
+  get().saveSettings(updated);
 
-    const newDevice = {
-  ...device,
-  imei: newIMEI,
-  status: STATUS.IN_STOCK,
-  assignedTo: null,
-  createdAt: new Date().toISOString(), // 🔥 ADD THIS
-  history: [entry]
-};
+},
+toggleTwoFactor: () => {
 
-    const updated = [...get().devices, newDevice];
-    set({ devices: updated });
-    get().saveDevices(updated);
-  },
+  const updated = {
+    ...get().settings,
+    twoFactor:
+      !get().settings.twoFactor
+  };
 
-  addDevicesBulk: (startImei, quantity) => {
-  const devices = get().devices;
+  set({
+    settings: updated
+  });
 
-  const newDevices = [];
+  get().saveSettings(updated);
 
-  for (let i = 0; i < quantity; i++) {
-    const imei = (Number(startImei) + i).toString();
-
-    // ✅ prevent duplicate IMEI
-    if (devices.some(d => d.imei === imei)) {
-      continue;
-    }
-
-    const entry = createHistoryEntry(
-      "created",
-      "Bulk Device Added",
-      `IMEI: ${imei}`
-    );
-
-    newDevices.push({
-      imei,
-      status: STATUS.IN_STOCK,
-      assignedTo: null,
-      history: [entry]
-    });
-
-    get().addHistory(entry);
-  }
-
-  const updated = [...devices, ...newDevices];
-
-  set({ devices: updated });
-  get().saveDevices(updated);
 },
 
-  deleteDevice: (imei) => {
-    const updated = get().devices.filter((d) => d.imei !== imei);
-    set({ devices: updated });
-    get().saveDevices(updated);
-  },
+  // ================= DEVICE =================
+addDevice: async (device) => {
 
-  updateDevice: (imei, updates) => {
-    const updated = get().devices.map((d) =>
-      d.imei === imei ? { ...d, ...updates } : d
+  try {
+
+    // ================= BACKEND REQUEST =================
+    await api.addDevice(device);
+
+
+    // ================= REFRESH DEVICES =================
+    const devices = await api.getDevices();
+
+    const history = await api.getHistory();
+
+
+    // ================= UPDATE STATE =================
+    set({
+      devices,
+      history
+    });
+
+  } catch (error) {
+
+    throw new Error(
+      error.message || "Failed to add device"
     );
-    set({ devices: updated });
-    get().saveDevices(updated);
-  },
+
+  }
+
+},
+
+  addDevicesBulk: async () => {
+  throw new Error(
+    "Bulk add not migrated yet"
+  );
+},
+
+  // ================= DELETE DEVICE =================
+deleteDevice: async (imei) => {
+
+  try {
+
+    // ================= BACKEND DELETE =================
+    await api.deleteDevice(imei);
+
+
+    // ================= REFRESH DATA =================
+    const devices = await api.getDevices();
+
+    const history = await api.getHistory();
+
+
+    // ================= UPDATE STATE =================
+    set({
+      devices,
+      history
+    });
+
+  } catch (error) {
+
+    throw new Error(
+      error.message || "Failed to delete device"
+    );
+
+  }
+
+},
+  // ================= UPDATE DEVICE =================
+updateDevice: async (
+  imei,
+  updates
+) => {
+
+  try {
+
+    // ================= BACKEND UPDATE =================
+    await api.updateDevice(
+      imei,
+      updates
+    );
+
+
+    // ================= REFRESH DATA =================
+    const devices = await api.getDevices();
+
+    const history = await api.getHistory();
+
+
+    // ================= UPDATE STATE =================
+    set({
+      devices,
+      history
+    });
+
+  } catch (error) {
+
+    throw new Error(
+      error.message || "Failed to update device"
+    );
+
+  }
+
+},
 
   // ================= ASSIGN =================
-  assignDevice: (imei, partyId) => {
-    const entry = createHistoryEntry(
-      "assigned",
-      "Device Assigned",
-      `Assigned to party: ${partyId}`
+assignDevice: async (
+  imei,
+  partyId
+) => {
+
+  try {
+
+    // ================= BACKEND ASSIGN =================
+    await api.assignDevice(
+      imei,
+      partyId
     );
 
-    get().addHistory(entry);
 
-    const updated = get().devices.map((d) =>
-      d.imei === imei
-        ? {
-            ...d,
-            status: STATUS.ASSIGNED,
-            assignedTo: partyId,
-            history: [...(d.history || []), entry]
-          }
-        : d
+    // ================= REFRESH DATA =================
+    const devices = await api.getDevices();
+
+    const history = await api.getHistory();
+
+
+    // ================= UPDATE STATE =================
+    set({
+      devices,
+      history
+    });
+
+  } catch (error) {
+
+    throw new Error(
+      error.message || "Assignment failed"
     );
 
-    set({ devices: updated });
-    get().saveDevices(updated);
-  },
+  }
 
+},
   // ================= UNASSIGN =================
-  // ================= UNASSIGN =================
-unassignDevice: (imei) => {
-  const entry = createHistoryEntry(
-    "unassigned",
-    "Device Unassigned",
-    "Returned to stock before activation"
+unassignDevice: async () => {
+  throw new Error(
+    "Unassign not migrated yet"
   );
-
-  get().addHistory(entry);
-
-  const updated = get().devices.map((d) =>
-    d.imei === imei
-      ? {
-          ...d,
-          status: STATUS.IN_STOCK,
-          assignedTo: null,
-          history: [...(d.history || []), entry]
-        }
-      : d
-  );
-
-  set({ devices: updated });
-  get().saveDevices(updated);
 },
 
   // ================= BULK ASSIGN =================
-  assignDevices: (partyId, quantity) => {
-    const devices = get().devices;
-
-    const available = devices.filter(
-      d => d.status === STATUS.IN_STOCK
-    );
-
-    if (available.length < quantity) {
-      alert("Not enough devices");
-      return;
-    }
-
-    const selected = available.slice(0, quantity);
-
-    const entry = createHistoryEntry(
-      "assigned",
-      "Bulk Device Assignment",
-      `Assigned ${quantity} devices to party: ${partyId}`
-    );
-
-    get().addHistory(entry);
-
-    const updated = devices.map(device => {
-      if (selected.some(d => d.imei === device.imei)) {
-        return {
-          ...device,
-          status: STATUS.ASSIGNED,
-          assignedTo: partyId,
-          history: [...(device.history || []), entry]
-        };
-      }
-      return device;
-    });
-
-    set({ devices: updated });
-    get().saveDevices(updated);
-  },
+  assignDevices: async () => {
+  throw new Error(
+    "Bulk assign not migrated yet"
+  );
+},
 
   // ================= ACTIVATE =================
-  activateDevice: (imei, data) => {
-    const entry = createHistoryEntry(
-      "activated",
-      "Device Activated",
-      data?.notes || "Activated"
+activateDevice: async (
+  imei,
+  data
+) => {
+
+  try {
+
+    // ================= BACKEND ACTIVATE =================
+    await api.activateDevice(
+      imei,
+      data
     );
 
-    get().addHistory(entry);
 
-    const updated = get().devices.map((d) =>
-      d.imei === imei
-        ? {
-            ...d,
-            status: STATUS.ACTIVATED,
-            vehicleNumber: data?.vehicleNumber || null,
-            customerName: data?.customerName || null,
-            notes: data?.notes || "",
-            activatedAt: new Date().toISOString(),
-            history: [...(d.history || []), entry]
-          }
-        : d
+    // ================= REFRESH DATA =================
+    const devices = await api.getDevices();
+
+    const history = await api.getHistory();
+
+
+    // ================= UPDATE STATE =================
+    set({
+      devices,
+      history
+    });
+
+  } catch (error) {
+
+    throw new Error(
+      error.message || "Activation failed"
     );
 
-    set({ devices: updated });
-    get().saveDevices(updated);
-  },
+  }
+
+},
 
   // ================= RETURN =================
-  returnDevice: (imei) => {
-    const entry = createHistoryEntry(
-      "returned",
-      "Device Returned",
-      "Returned after use"
+returnDevice: async (imei) => {
+
+  try {
+
+    // ================= BACKEND RETURN =================
+    await api.returnDevice(imei);
+
+
+    // ================= REFRESH DATA =================
+    const devices = await api.getDevices();
+
+    const history = await api.getHistory();
+
+
+    // ================= UPDATE STATE =================
+    set({
+      devices,
+      history
+    });
+
+  } catch (error) {
+
+    throw new Error(
+      error.message || "Return failed"
     );
 
-    get().addHistory(entry);
+  }
 
-    const updated = get().devices.map((d) =>
-      d.imei === imei
-        ? {
-            ...d,
-            status: STATUS.IN_STOCK,
-            assignedTo: null,
-            vehicleNumber: null,
-            customerName: null,
-            activatedAt: null,
-            history: [...(d.history || []), entry]
-          }
-        : d
-    );
-
-    set({ devices: updated });
-    get().saveDevices(updated);
-  },
+},
 
   // ================= PARTY =================
-  addParty: (party) => {
-    const updated = [
-      ...get().parties,
-      { ...party, id: Date.now().toString() }
-    ];
-    set({ parties: updated });
-    get().saveParties(updated);
-  },
+addParty: async (party) => {
 
-  deleteParty: (id) => {
-    const updated = get().parties.filter((p) => p.id !== id);
-    set({ parties: updated });
-    get().saveParties(updated);
-  },
+  try {
 
+    // ================= BACKEND ADD =================
+    await api.addParty(party);
+
+
+    // ================= REFRESH PARTIES =================
+    const parties = await api.getParties();
+
+
+    // ================= UPDATE STATE =================
+    set({
+      parties
+    });
+
+  } catch (error) {
+
+    throw new Error(
+      error.message || "Failed to add party"
+    );
+
+  }
+
+},
+
+ // ================= DELETE PARTY =================
+deleteParty: async (id) => {
+
+  try {
+
+    // ================= BACKEND DELETE =================
+    await api.deleteParty(id);
+
+
+    // ================= REFRESH PARTIES =================
+    const parties = await api.getParties();
+
+
+    // ================= UPDATE STATE =================
+    set({
+      parties
+    });
+
+  } catch (error) {
+
+    throw new Error(
+      error.message || "Failed to delete party"
+    );
+
+  }
+
+},
    // ================= MARK SOLD =================
-markAsSold: (imei, data) => {
-  const entry = createHistoryEntry(
-    "sold",
-    "Device Sold",
-    `Sold for ₹${data.sellingPrice}`
+markAsSold: async (
+  imei,
+  data
+) => {
+
+  try {
+
+    // ================= BACKEND SALE =================
+    await api.sellDevice(
+      imei,
+      data
+    );
+
+
+    // ================= REFRESH DATA =================
+    const devices = await api.getDevices();
+
+    const history = await api.getHistory();
+
+
+    // ================= UPDATE STATE =================
+    set({
+      devices,
+      history
+    });
+
+  } catch (error) {
+
+    throw new Error(
+      error.message || "Sale failed"
+    );
+
+  }
+
+},
+
+// ================= RESTORE DEVICE =================
+restoreDevice: async () => {
+  throw new Error(
+    "Restore not migrated yet"
   );
-
-  get().addHistory(entry);
-
-  const updated = get().devices.map((d) =>
-    d.imei === imei
-      ? {
-          ...d,
-          status: STATUS.SOLD,
-          assignedTo: null,
-
-          // ✅ REAL ANALYTICS DATA
-          soldAt: new Date().toISOString(),
-          sellingPrice: data.sellingPrice,
-          costPrice: data.costPrice,
-
-          history: [...(d.history || []), entry]
-        }
-      : d
-  );
-
-  set({ devices: updated });
-  get().saveDevices(updated);
-}
+},
 }));

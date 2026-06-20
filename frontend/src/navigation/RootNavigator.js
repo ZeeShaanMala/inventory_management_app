@@ -10,7 +10,7 @@ import DrawerNavigator  from "./DrawerNavigator"; // NEW: Drawer-based main app
 // ⚙️ Global Action Screens
 import AddDevice from "@screens/Device/AddDevice";
 import AddParty from "@screens/Party/AddParty";
-
+import PartyDetails from "@screens/Party/PartyDetail";
 import AssignDevice from "@screens/Actions/AssignDevice";
 import ActivateDevice from "@screens/Actions/ActivateDevice";
 import MarkSold from "@screens/Actions/MarkSold";
@@ -38,6 +38,7 @@ export default function RootNavigator() {
       {/* ⚙️ GLOBAL ACTIONS */}
       <Stack.Screen name="AddDevice" component={AddDevice} />
       <Stack.Screen name="AddParty" component={AddParty} />
+      <Stack.Screen name="PartyDetails" component={PartyDetails} />
       <Stack.Screen name="AssignDevice" component={AssignDevice} />
       <Stack.Screen name="ActivateDevice" component={ActivateDevice} />
       <Stack.Screen name="MarkSold" component={MarkSold} />

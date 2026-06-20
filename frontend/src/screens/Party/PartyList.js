@@ -65,7 +65,12 @@ export default function PartyList({ navigation, route }) {
     );
 
     return (
-      <Swipeable renderRightActions={renderRightActions}>
+      <Swipeable
+  renderRightActions={renderRightActions}
+  friction={2}
+  overshootRight={false}
+  rightThreshold={40}
+>
         <Animated.View style={{ transform: [{ translateY }], opacity }}>
           
           <View style={styles.card}>
@@ -74,20 +79,47 @@ export default function PartyList({ navigation, route }) {
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => {
-                if (!route.params?.device) return;
 
-                navigation.navigate("AssignDevice", {
-                  device: route.params.device,
-                  party: item
-                });
-              }}
+  if (route.params?.device) {
+
+    navigation.navigate("AssignDevice", {
+      device: route.params.device,
+      party: item
+    });
+
+  } else {
+
+    navigation.navigate(
+      "PartyDetails",
+      { party: item }
+    );
+
+  }
+
+}}
             >
               <Text style={styles.name}>{item.name}</Text>
 
               <View style={styles.row}>
-                <Text style={styles.icon}>📞</Text>
-                <Text style={styles.text}>{item.phone}</Text>
-              </View>
+  <Text style={styles.icon}>📞</Text>
+  <Text style={styles.text}>
+    {item.phone}
+  </Text>
+</View>
+
+<View style={styles.row}>
+  <Text style={styles.icon}>📍</Text>
+  <Text style={styles.text}>
+    {item.city}
+  </Text>
+</View>
+
+<View style={styles.row}>
+  <Text style={styles.icon}>🏢</Text>
+  <Text style={styles.text}>
+    {item.type}
+  </Text>
+</View>
             </TouchableOpacity>
 
             {/* Edit Button */}
@@ -139,7 +171,7 @@ export default function PartyList({ navigation, route }) {
         ) : (
           <FlatList
             data={parties}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item.id.toString()}
             renderItem={renderItem}
             showsVerticalScrollIndicator={false}
           />

@@ -12,10 +12,9 @@ import {
 import { useStore } from "@store/useStore";
 
 export default function EditDevice({ route, navigation }) {
-  const { deviceId } = route.params;
-  const { devices , updateDevice } = useStore();
+const { device } = route.params;
+const { devices , updateDevice } = useStore();
 
-  const device = devices.find(d => d.imei === deviceId);
 
   const [model, setModel] = useState(device?.model || "");
   const [simNumber, setSimNumber] = useState(device?.simNumber || "");
@@ -28,8 +27,8 @@ export default function EditDevice({ route, navigation }) {
     );
   }
 
- const handleSave = () => {
-  updateDevice(device.imei, {
+ const handleSave = async () => {
+  await updateDevice(device.imei, {
     model,
     simNumber
   });

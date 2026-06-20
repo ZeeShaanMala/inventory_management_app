@@ -9,6 +9,7 @@ import {
   ScrollView,
   TouchableOpacity
 } from "react-native";
+import LoadingOverlay from "@components/LoadingOverlay";
 import { Picker } from "@react-native-picker/picker";
 import PrimaryButton from "../../components/PrimaryButton";
 import { useStore } from "@store/useStore";
@@ -20,7 +21,8 @@ export default function AssignDevice({ navigation, route }) {  const devices = u
   const isBulk = route?.params?.bulk;
   // ✅ IMPORTANT: use bulk function
   const assignDevices = useStore(state => state.assignDevices);
-  const [selectedImei, setSelectedImei] = useState("");
+  const { device } = route.params;
+  const [selectedImei, setSelectedImei] = useState(device?.imei || "");
   const assignDevice = useStore(state => state.assignDevice);
   const [quantity, setQuantity] = useState("");
   const [selectedParty, setSelectedParty] = useState("");
@@ -29,7 +31,7 @@ export default function AssignDevice({ navigation, route }) {  const devices = u
 
   // ✅ Available devices (stock)
   const availableDevices = devices.filter(
-    d => d?.status === STATUS.IN_STOCK
+d => d?.status === "IN_STOCK"
   );
 
   // ✅ Assign Handler
@@ -62,13 +64,30 @@ export default function AssignDevice({ navigation, route }) {  const devices = u
     await new Promise(resolve => setTimeout(resolve, 700));
 
     if (isBulk) {
-      assignDevices(selectedParty, Number(quantity));
-      Alert.alert("Success", `${quantity} devices assigned`);
-    } else {
-      assignDevice(selectedImei, selectedParty);
-      Alert.alert("Success", "Device assigned successfully");
-    }
 
+  await assignDevices(
+    selectedParty,
+    Number(quantity)
+  );
+
+  Alert.alert(
+    "Success",
+    `${quantity} devices assigned`
+  );
+
+} else {
+
+  await assignDevice(
+    selectedImei,
+    selectedParty
+  );
+
+  Alert.alert(
+    "Success",
+    "Device assigned successfully"
+  );
+
+}
     navigation.goBack();
 
   } catch (e) {
@@ -188,12 +207,10 @@ export default function AssignDevice({ navigation, route }) {  const devices = u
 
           <PrimaryButton
           title={
-            loading
-              ? "Processing..."
-              : isBulk
-              ? "Assign Devices"
-              : "Assign Device"
-          }
+  isBulk
+    ? "Assign Devices"
+    : "Assign Device"
+}
           icon="✔️"
           onPress={handleAssign}
           disabled={
@@ -215,6 +232,14 @@ export default function AssignDevice({ navigation, route }) {  const devices = u
         </View>
 
       </ScrollView>
+      <LoadingOverlay
+  visible={loading}
+  text={
+    isBulk
+      ? "Assigning devices..."
+      : "Assigning device..."
+  }
+/>
     </SafeAreaView>
   );
 }

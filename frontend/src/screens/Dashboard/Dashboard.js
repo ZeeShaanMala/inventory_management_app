@@ -21,7 +21,7 @@ export default function Dashboard({ navigation }) {
     });
   }, [navigation]);
 
-  const { devices } = useStore();
+  const { devices,history } = useStore();
 
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [chartType, setChartType] = useState("sold");
@@ -49,10 +49,9 @@ export default function Dashboard({ navigation }) {
   ];
 
   // ---------------- HISTORY ----------------
-  const history = devices
-    .flatMap(d => d.history || [])
-    .sort((a, b) => b.id - a.id)
-    .slice(0, 5);
+const recentHistory = [...history]
+  .reverse()
+  .slice(0, 5);
 
   // ---------------- CHART DATA ----------------
   const getChartData = () => {
@@ -63,16 +62,14 @@ export default function Dashboard({ navigation }) {
 
     let dateField = null;
 
-    if (chartType === "sold" && device.soldAt) {
-      dateField = device.soldAt;
+    if (chartType === "sold" && device.sold_at) {
+      dateField = device.sold_at;
     }
 
-    if (chartType === "assigned" && device.assignedAt) {
-      dateField = device.assignedAt;
-    }
+   
 
-    if (chartType === "in_stock" && device.createdAt) {
-      dateField = device.createdAt;
+    if (chartType === "in_stock" && device.created_at) {
+      dateField = device.created_at;
     }
 
     if (!dateField) return;
@@ -172,7 +169,7 @@ const getBarColor = (type) => {
           {/* MENU */}
           {menuVisible && (
             <View style={styles.menu}>
-              {["sold","assigned","in_stock"].map(type => (
+              {["sold","in_stock"].map(type => (
                 <TouchableOpacity
                   key={type}
                   onPress={() => {
@@ -202,7 +199,9 @@ const getBarColor = (type) => {
   {normalized.map((h, i) => (
     <TouchableOpacity key={i} onPress={() => handleBarPress(i)}>
       <View style={styles.barContainer}>
-        
+        <Text style={styles.barValue}>
+  {chartData[i]}
+</Text>
         <View
   style={[
     styles.bar,
@@ -256,17 +255,40 @@ const getBarColor = (type) => {
 <View style={styles.historySection}>
   <Text style={styles.sectionTitle}>Recent History</Text>
 
-  {history.length === 0 ? (
+  {recentHistory.length === 0 ? (
     <Text style={styles.emptyText}>No recent activity</Text>
   ) : (
     <>
-      {history.slice(0, 3).map((item, index) => (
-        <View key={item.id + "-" + index} style={styles.historyCard}>
-          <Text style={styles.historyText}>{item.label}</Text>
-          <Text style={styles.historyMeta}>
-            {item.date} • {item.time}
-          </Text>
-        </View>
+      {recentHistory.map((item, index) => (
+        <View
+  key={item.id + "-" + index}
+  style={styles.historyCard}
+>
+
+  <Text style={styles.historyText}>
+    {item.label}
+  </Text>
+
+  {!!item.note && (
+    <Text style={styles.historyNote}>
+      {item.note}
+    </Text>
+  )}
+  {!!item.device_imei && (
+  <Text style={styles.imei}>
+    IMEI: {item.device_imei}
+  </Text>
+)}
+
+  <Text style={styles.historyMeta}>
+    {
+  item?.created_at
+    ? new Date(item.created_at).toLocaleString()
+    : "-"
+}
+  </Text>
+
+</View>
       ))}
 
       <TouchableOpacity
@@ -340,6 +362,7 @@ title: {
   elevation: 4,
   shadowColor: "#000",
   shadowOpacity: 0.08,
+  overflow: "visible",
   shadowRadius: 10
 },
 
@@ -356,15 +379,23 @@ sectionTitle: {
 
   chartRow: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "flex-end",
-    height: 100,
+    height: 160,
     marginTop: 10
   },
 
   bar: {
-  width: 22,
+  width: 28,
   borderRadius: 10,
   marginBottom: 6
+},
+
+barValue: {
+  fontSize: 11,
+  fontWeight: "600",
+  marginBottom: 4,
+  color: "#334155"
 },
 
 dayLabel: {
@@ -374,7 +405,7 @@ dayLabel: {
 
   barContainer: {
   alignItems: "center",
-  marginRight: 10
+  marginRight: 19
 },
 
   tooltip: {
@@ -395,7 +426,9 @@ dayLabel: {
     backgroundColor: "#fff",
     borderRadius: 8,
     padding: 8,
-    elevation: 5
+    elevation: 5,
+    zIndex: 999,
+elevation: 10
   },
 
   menuItem: {
@@ -422,8 +455,26 @@ dayLabel: {
     marginTop: 10
   },
 
-  historyText: { fontWeight: "500" },
-  historyMeta: { fontSize: 12, color: "#64748B" },
+  historyNote: {
+  fontSize: 12,
+  color: "#000000",
+  marginTop: 10,
+  marginBottom: 10
+},
+
+historyText: {
+  fontWeight: "500",
+  marginBottom: 4
+},  
+
+imei: {
+  fontSize: 12,
+  color: "#2563EB",
+  marginTop: 4,
+  fontWeight: "600"
+},
+
+historyMeta: { fontSize: 12, color: "#64748B" },
 
   emptyText: {
   color: "#94A3B8",

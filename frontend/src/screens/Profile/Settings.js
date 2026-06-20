@@ -13,6 +13,17 @@ export default function Settings() {
   return (
     <View style={styles.container}>
 
+      {/* HEADER */}
+      <View style={styles.header}>
+  <Text style={styles.screenTitle}>
+    Settings
+  </Text>
+
+  <Text style={styles.screenSubtitle}>
+    Manage application preferences
+  </Text>
+</View>
+
       {/* NOTIFICATIONS */}
       <View style={styles.card}>
         <Text style={styles.title}>Notifications</Text>
@@ -42,15 +53,47 @@ export default function Settings() {
       </View>
 
       {/* SYSTEM */}
+     {/* SYSTEM */}
+<View style={styles.card}>
+
+  <Text style={styles.title}>
+    System
+  </Text>
+
+  <View style={styles.infoRow}>
+    <Text style={styles.label}>
+      Language
+    </Text>
+
+    <Text style={styles.value}>
+      English
+    </Text>
+  </View>
+
+  <View style={styles.infoRow}>
+    <Text style={styles.label}>
+      Version
+    </Text>
+
+    <Text style={styles.value}>
+      1.0.0
+    </Text>
+  </View>
+
+</View>
+    {/* ABOUT */}
       <View style={styles.card}>
-        <Text style={styles.title}>System</Text>
 
-        <Text style={styles.label}>Language</Text>
-        <Text style={styles.value}>English</Text>
+  <Text style={styles.title}>
+    About
+  </Text>
 
-        <Text style={styles.label}>Version</Text>
-        <Text style={styles.value}>1.0.0</Text>
-      </View>
+  <Text style={styles.label}>
+    GPS Inventory System
+  </Text>
+
+  
+</View>
 
     </View>
   );
@@ -59,7 +102,19 @@ export default function Settings() {
 const Row = ({ label, value, onToggle }) => (
   <View style={styles.row}>
     <Text style={styles.label}>{label}</Text>
-    <Switch value={value} onValueChange={onToggle} />
+    <Switch
+  value={value}
+  onValueChange={onToggle}
+  trackColor={{
+    false: "#CBD5E1",
+    true: "#93C5FD"
+  }}
+  thumbColor={
+    value
+      ? "#1E3A8A"
+      : "#F8FAFC"
+  }
+/>
   </View>
 );
 
@@ -73,8 +128,16 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "#fff",
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 12
+    borderRadius: 18,
+    marginBottom: 12,
+    elevation: 2,
+shadowColor: "#000",
+shadowOpacity: 0.04,
+shadowRadius: 6,
+shadowOffset: {
+  width: 0,
+  height: 2
+}
   },
 
   title: {
@@ -98,5 +161,24 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 14,
     fontWeight: "500"
-  }
+  },
+  infoRow: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  marginBottom: 12
+},
+header: {
+  marginBottom: 20
+},
+
+screenTitle: {
+  fontSize: 30,
+  fontWeight: "700",
+  color: "#1E293B"
+},
+
+screenSubtitle: {
+  color: "#64748B",
+  marginTop: 4
+}
 });

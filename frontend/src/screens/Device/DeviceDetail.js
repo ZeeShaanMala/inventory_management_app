@@ -64,7 +64,17 @@ const DeviceDetail = ({ route, navigation }) => {
   ) || {};
 
   const { parties } = useStore();
-  const assignedParty = parties?.find(p => p.id === device.assignedTo);
+  const history = useStore(
+  state => state.history || []
+);
+const deviceHistory = history.filter(
+  item =>
+    String(item.device_imei) ===
+    String(device.imei)
+);
+  const assignedParty = parties?.find(
+  p => String(p.id) === String(device.assigned_to)
+);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(24)).current;
@@ -109,6 +119,8 @@ const DeviceDetail = ({ route, navigation }) => {
             </View>
           </View>
 
+      
+
           {/* ✅ FIXED BUTTON CONDITION */}
          {normalize(device?.status) === "assigned" && (
   <>
@@ -130,7 +142,7 @@ const DeviceDetail = ({ route, navigation }) => {
       onPress={() =>
         navigation.navigate("ActionDevice", {
           imei: device.imei,
-          action: "unassign"
+          action: "return"
         })
       }
     >
@@ -200,26 +212,49 @@ const DeviceDetail = ({ route, navigation }) => {
 
             <QuickCard
               label="Truck No."
-              value={device?.vehicleNumber || "Not Assigned"}
+              value={device?.vehicle_number || "Not Assigned"}
             />
             <QuickCard
   label="Profit"
-  value={`₹${(device?.sellingPrice || 0) - (device?.costPrice || 0)}`}
+  value={`₹${
+    Number(device?.selling_price || 0)
+    -
+    Number(device?.cost_price || 0)
+  }`}
 />
           </View>
 
           {/* TIMELINE */}
           <Text style={styles.sectionTitle}>Lifecycle History</Text>
 
-          {(device.history || []).map((item, i) => (
+          {deviceHistory.map((item, i) => (
             <View key={i} style={styles.timelineItem}>
               <View style={styles.dot} />
               <View>
-                <Text style={styles.timelineTitle}>{item?.label || "-"}</Text>
-                <Text style={styles.timelineMeta}>
-                  {(item?.date || "-") + " • " + (item?.time || "-")}
-                </Text>
-              </View>
+  <Text style={styles.timelineTitle}>
+    {item?.label || "-"}
+  </Text>
+
+  {!!item?.note && (
+    <Text style={styles.timelineNote}>
+      {item.note}
+    </Text>
+  )}
+
+  {!!item.device_imei && (
+  <Text style={styles.imei}>
+    IMEI: {item.device_imei}
+  </Text>
+)}
+
+  <Text style={styles.timelineMeta}>
+    {
+  item?.created_at
+    ? new Date(item.created_at).toLocaleString()
+    : "-"
+}
+  </Text>
+</View>
             </View>
           ))}
 
@@ -314,14 +349,26 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
+  timelineNote: {
+    color: "#ffffff",
+    fontSize: 12,
+    marginTop: 2,
+  },
+
   dot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#3B82F6",
+    backgroundColor: "#6697e7",
     marginRight: 10,
     marginTop: 5,
   },
+  imei: {
+  fontSize: 12,
+  color: "#2563EB",
+  marginTop: 4,
+  fontWeight: "600"
+},
 
   timelineTitle: { color: "#fff" },
 

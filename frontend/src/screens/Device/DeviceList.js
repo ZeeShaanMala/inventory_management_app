@@ -9,7 +9,8 @@ import {
   Pressable,
   TextInput,
   TouchableOpacity,
-  Alert
+  Alert,
+  RefreshControl
 } from "react-native";
 
 import { useStore } from "@store/useStore";
@@ -158,6 +159,7 @@ export default function DeviceList() {
   const [showUndo, setShowUndo] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("ALL");
+  const [refreshing, setRefreshing] = useState(false);
 
   const handleDelete = (item) => {
     Alert.alert("Delete Device", "Are you sure?", [
@@ -181,6 +183,31 @@ export default function DeviceList() {
       setShowUndo(false);
     }
   };
+
+  const handleRefresh = async () => {
+
+  try {
+
+    setRefreshing(true);
+
+    await useStore
+      .getState()
+      .loadData();
+
+  } catch (e) {
+
+    Alert.alert(
+      "Error",
+      "Failed to refresh data"
+    );
+
+  } finally {
+
+    setRefreshing(false);
+
+  }
+
+};
 
   const filteredDevices = devices.filter((d) => {
   const query = (searchQuery || "").toString().toLowerCase().trim();
@@ -299,18 +326,66 @@ export default function DeviceList() {
           })}
         </View>
 
-        <FlatList
-          data={filteredDevices}
-          extraData={filteredDevices}  
-keyExtractor={(item, index) => item?.imei?.toString() + "-" + index}          renderItem={({ item, index }) => (
-            <AnimatedDeviceItem
-              item={item}
-              index={index}
-              navigation={navigation}
-              handleDelete={handleDelete}
-            />
-          )}
+        {
+  filteredDevices.length === 0 ? (
+
+    <View style={styles.emptyContainer}>
+
+      <Icon
+        name="database-off-outline"
+        size={70}
+        color="#CBD5E1"
+      />
+
+      <Text style={styles.emptyTitle}>
+        No Devices Found
+      </Text>
+
+      <Text style={styles.emptySubtitle}>
+        Add your first GPS device to begin inventory tracking.
+      </Text>
+
+      <TouchableOpacity
+        style={styles.emptyBtn}
+        onPress={() =>
+          navigation.navigate("AddDevice")
+        }
+      >
+        <Text style={styles.emptyBtnText}>
+          Add Device
+        </Text>
+      </TouchableOpacity>
+
+    </View>
+
+  ) : (
+
+    <FlatList
+      data={filteredDevices}
+      extraData={filteredDevices}
+      keyExtractor={(item, index) =>
+        item?.imei?.toString() + "-" + index
+      }
+      renderItem={({ item, index }) => (
+        <AnimatedDeviceItem
+          item={item}
+          index={index}
+          navigation={navigation}
+          handleDelete={handleDelete}
+          refreshControl={
+  <RefreshControl
+    refreshing={refreshing}
+    onRefresh={handleRefresh}
+    colors={["#1E3A8A"]}
+    tintColor="#1E3A8A"
+  />
+}
         />
+      )}
+    />
+
+  )
+}
 
         {showUndo && (
           <View style={styles.snackbar}>
@@ -491,6 +566,39 @@ actionBtnSecondary: {
 },
 
 actionBtnText: {
+  color: "#fff",
+  fontWeight: "600"
+},
+emptyContainer: {
+  flex: 1,
+  justifyContent: "center",
+  alignItems: "center",
+  paddingHorizontal: 30
+},
+
+emptyTitle: {
+  fontSize: 20,
+  fontWeight: "700",
+  color: "#1E293B",
+  marginTop: 20
+},
+
+emptySubtitle: {
+  textAlign: "center",
+  color: "#64748B",
+  marginTop: 10,
+  lineHeight: 22
+},
+
+emptyBtn: {
+  marginTop: 25,
+  backgroundColor: "#1E3A8A",
+  paddingHorizontal: 24,
+  paddingVertical: 12,
+  borderRadius: 12
+},
+
+emptyBtnText: {
   color: "#fff",
   fontWeight: "600"
 },
